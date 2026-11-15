@@ -1,0 +1,751 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="theme-color" content="#0b1026">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Room {{ room.room_id }} - ChatRoom</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'chat/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'chat/css/room.css' %}">
+    <!-- NIGHT THEME (stars, shooting stars, animated messages, mobile friendly). Loaded after room.css so it overrides it. -->
+    <style>
+/* =====================================================================
+   ChatRoom – room page NIGHT theme (same look as the home page)
+   (inline in room.html, after room.css)
+   Only colours / backgrounds / animations are changed. IDs, classes and layout used by
+   chat.js, call.js and message-avatars.js are untouched.
+   ===================================================================== */
+
+/* ---------- Night sky background ---------- */
+.room-page {
+    color: #fff;
+    background:
+        radial-gradient(900px 500px at 85% -10%, rgba(139, 92, 246, .35), transparent 60%),
+        radial-gradient(800px 500px at 0% 30%, rgba(20, 184, 166, .22), transparent 60%),
+        radial-gradient(700px 500px at 60% 110%, rgba(255, 107, 87, .22), transparent 60%),
+        linear-gradient(180deg, #060a1f, #0b1026 50%, #140f33);
+    -webkit-tap-highlight-color: transparent;
+}
+.room-page .sky { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.room-page .sky .star {
+    position: absolute; border-radius: 50%;
+    box-shadow: 0 0 6px 1px currentColor;
+    animation: rn-twinkle 3s ease-in-out infinite;
+}
+.room-page .sky .shoot {
+    position: absolute; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--c));
+    filter: drop-shadow(0 0 6px var(--c));
+    transform-origin: 0 50%;
+    opacity: 0;
+    animation: rn-shoot 1.4s linear infinite;
+}
+.room-page .sky .shoot::after {
+    content: ""; position: absolute; right: -2px; top: -2px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 10px 3px var(--c);
+}
+@keyframes rn-twinkle { 0%, 100% { opacity: .25; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.25); } }
+@keyframes rn-shoot {
+    0%   { opacity: 0; transform: rotate(62deg) translateX(0); }
+    12%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: rotate(62deg) translateX(800px); }
+}
+
+/* ---------- Glass chat window ---------- */
+.room-page .room-wrapper {
+    z-index: 1;
+    background: rgba(12, 18, 46, .62);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, .12);
+}
+@media (min-width: 900px) {
+    .room-page .room-wrapper { box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+}
+@media (max-width: 899px) {
+    .room-page .room-wrapper { border: 0; border-radius: 0; }   /* full screen on phones */
+}
+
+.room-page .room-header {
+    background: linear-gradient(135deg, rgba(91, 63, 209, .6), rgba(15, 157, 138, .5));
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .3);
+}
+
+.room-page .room-info {
+    background: rgba(255, 255, 255, .05);
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+    color: #fff;
+}
+.room-page .my-avatar-img { background: rgba(255, 255, 255, .14); color: rgba(255, 255, 255, .75); }
+.room-page .cam-badge { border-color: #14193f; }
+.room-page .room-id-group { color: rgba(255, 255, 255, .7); }
+.room-page .room-id-small { color: #fff; background: rgba(255, 255, 255, .12); }
+.room-page .copy-btn { color: #7dffd6; background: rgba(125, 255, 214, .1); border-color: rgba(125, 255, 214, .4); }
+.room-page .copy-btn:hover { color: #0b1026; background: #7dffd6; }
+
+/* ---------- Messages area ---------- */
+.room-page .messages {
+    background-color: transparent;
+    background-image: radial-gradient(rgba(255, 255, 255, .09) 1px, transparent 1px);
+    background-size: 20px 20px;
+    scrollbar-color: rgba(255, 255, 255, .3) transparent;
+}
+.room-page .messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .3); }
+
+.room-page .notice {
+    color: rgba(255, 255, 255, .85);
+    background: rgba(255, 255, 255, .08);
+    border: 1px dashed rgba(255, 255, 255, .3);
+}
+
+/* Bubbles */
+.room-page .message.sent .bubble {
+    background: linear-gradient(135deg, #14b8a6 0%, #3b82f6 55%, #8b5cf6 100%);
+    background-size: 220% 220%;
+    box-shadow: 0 8px 22px rgba(59, 130, 246, .35);
+}
+.room-page .message.received .bubble {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .07));
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-left: 4px solid var(--coral);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+}
+.room-page .message.received .time { color: #ffb4a8; opacity: .95; }
+.room-page .message.sent .time { color: rgba(255, 255, 255, .85); }
+.room-page .msg-avatar { box-shadow: 0 0 0 2px rgba(255, 255, 255, .85), 0 4px 10px rgba(0, 0, 0, .35); }
+
+/* ---------- ANIMATED messages (only the newest 6, history stays calm) ---------- */
+.room-page .message.sent:nth-last-child(-n+6) {
+    animation: rn-fly-right .75s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.room-page .message.received:nth-last-child(-n+6) {
+    animation: rn-fly-left .75s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.room-page .message.sent:nth-last-child(-n+6) .bubble {
+    animation: rn-glow-blue 1.4s ease-out both, rn-flow 7s ease-in-out .8s infinite;
+}
+.room-page .message.received:nth-last-child(-n+6) .bubble {
+    animation: rn-glow-coral 1.4s ease-out both;
+}
+/* little sparkle on the newest bubble */
+.room-page .message:last-child .bubble { position: relative; }
+.room-page .message:last-child .bubble::after {
+    content: "✨"; position: absolute; top: -10px; font-size: .9rem; pointer-events: none;
+    animation: rn-sparkle 1.6s ease-out both;
+}
+.room-page .message.sent:last-child .bubble::after { left: -8px; }
+.room-page .message.received:last-child .bubble::after { right: -8px; }
+
+@keyframes rn-fly-right { 0% { opacity: 0; transform: translateX(70px) translateY(14px) rotate(4deg) scale(.7); } 100% { opacity: 1; transform: none; } }
+@keyframes rn-fly-left  { 0% { opacity: 0; transform: translateX(-70px) translateY(14px) rotate(-4deg) scale(.7); } 100% { opacity: 1; transform: none; } }
+@keyframes rn-glow-blue  { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, .8); } 100% { box-shadow: 0 8px 22px rgba(59, 130, 246, .35), 0 0 0 18px rgba(59, 130, 246, 0); } }
+@keyframes rn-glow-coral { 0% { box-shadow: 0 0 0 0 rgba(255, 107, 87, .75); } 100% { box-shadow: 0 8px 20px rgba(0, 0, 0, .25), 0 0 0 18px rgba(255, 107, 87, 0); } }
+@keyframes rn-flow    { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes rn-sparkle { 0% { opacity: 0; transform: scale(.2) rotate(0); } 40% { opacity: 1; transform: scale(1.2) rotate(25deg); } 100% { opacity: 0; transform: translateY(-14px) scale(.8) rotate(50deg); } }
+
+/* ---------- Message form ---------- */
+.room-page .message-form {
+    background: rgba(8, 12, 34, .6);
+    border-top: 1px solid rgba(255, 255, 255, .12);
+}
+.room-page .message-form input[type="text"] {
+    color: #fff;
+    background: rgba(255, 255, 255, .1);
+    border-color: rgba(255, 255, 255, .12);
+}
+.room-page .message-form input[type="text"]::placeholder { color: rgba(255, 255, 255, .55); }
+.room-page .message-form input[type="text"]:focus {
+    background: rgba(255, 255, 255, .16);
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, .25);
+}
+.room-page .send-btn { animation: rn-send-pulse 3s ease-in-out infinite; }
+@keyframes rn-send-pulse { 0%, 100% { box-shadow: 0 8px 18px rgba(255, 107, 87, .4); } 50% { box-shadow: 0 8px 26px rgba(255, 154, 60, .7); } }
+
+/* ---------- Mobile friendly ---------- */
+@media (max-width: 520px) {
+    .room-page .room-header { padding-top: calc(.6rem + env(safe-area-inset-top, 0px)); }
+    .room-page .room-title strong { font-size: 1rem; }
+    .room-page .message .text { font-size: .98rem; }
+    .room-page .message-form { gap: .5rem; }
+    .room-page .message-form input[type="text"] { padding: .8rem 1rem; }
+    .room-page .send-btn { width: 46px; height: 46px; }
+    .room-page .toast { bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-height: 480px) {
+    .room-page .sky .shoot { display: none; }          /* keep sideways phones fast */
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .room-page .sky .shoot { display: none; }
+    .room-page .send-btn { animation: none; }
+    .room-page .message:last-child .bubble::after { display: none; }
+}
+    </style>
+</head>
+<body class="room-page"
+      data-room-id="{{ room.room_id }}"
+      data-role="{{ role }}"
+      data-peer-role="{{ peer_role }}"
+      data-avatar-url="{% url 'avatar_upload' room.room_id %}">
+
+    <div class="room-wrapper">
+
+        <header class="room-header">
+            <a href="{% url 'home' %}" class="back-link" aria-label="Back to home">←</a>
+
+            <!-- The OTHER person's profile picture -->
+            <div class="avatar" id="peer-avatar">
+                {% if peer_avatar_version %}
+                    <img src="{% url 'avatar_image' room.room_id peer_role %}?v={{ peer_avatar_version }}" alt="">
+                {% else %}
+                    {% include 'chat/_person_icon.html' %}
+                {% endif %}
+            </div>
+
+            <div class="room-title">
+                <strong>Private Chat</strong>
+                <span id="status" class="status disconnected">Disconnected</span>
+            </div>
+
+            <!-- Call buttons (enabled only while connected) -->
+            <div class="header-actions">
+                <button type="button" id="video-call-btn" class="icon-btn" title="Video call" aria-label="Start video call" disabled>
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                </button>
+                <button type="button" id="voice-call-btn" class="icon-btn" title="Voice call" aria-label="Start voice call" disabled>
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="room-info">
+            <!-- YOUR profile picture (click to change) -->
+            <button type="button" id="my-avatar-btn" class="my-avatar" title="Change your profile picture" aria-label="Change your profile picture">
+                <span class="my-avatar-img" id="my-avatar">
+                    {% if my_avatar_version %}
+                        <img src="{% url 'avatar_image' room.room_id role %}?v={{ my_avatar_version }}" alt="">
+                    {% else %}
+                        {% include 'chat/_person_icon.html' %}
+                    {% endif %}
+                </span>
+                <span class="cam-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                        <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/>
+                    </svg>
+                </span>
+            </button>
+            <input type="file" id="avatar-input" accept="image/*" hidden>
+            <span class="me-label">You ({{ role }})</span>
+
+            <span class="room-id-group">
+                <span class="room-id-label">Room ID:</span>
+                <span id="room-id-text" class="room-id-small">{{ room.room_id }}</span>
+            </span>
+            <button type="button" id="copy-btn" class="copy-btn">Copy ID</button>
+        </div>
+
+        <div id="messages" class="messages">
+            {% for m in chat_messages %}
+                <div class="message {% if m.sender_role == role %}sent{% else %}received{% endif %}">
+                    <div class="bubble">
+                        <div class="text">{{ m.text }}</div>
+                        <div class="time" data-time="{{ m.created_at|date:'c' }}"></div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="notice" id="empty-notice">
+                    {% if role == 'creator' %}
+                        Share your Room ID with one person. Your messages will appear here.
+                    {% else %}
+                        You joined the room. Say hello! 👋
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <form id="message-form" class="message-form" autocomplete="off">
+            <input type="text" id="message-input" placeholder="Type a message" maxlength="1000" required>
+            <button type="submit" id="send-btn" class="send-btn" aria-label="Send message">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2z"/>
+                </svg>
+            </button>
+        </form>
+
+    </div>
+
+    <!-- Small pop-up message (errors, "Call declined", ...) -->
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <!-- Incoming call screen -->
+    <div id="incoming-call" class="incoming" hidden>
+        <div class="incoming-card">
+            <div class="call-avatar" id="incoming-avatar"></div>
+            <div class="incoming-title" id="incoming-title">Incoming call</div>
+            <div class="incoming-sub">Private Chat</div>
+            <div class="incoming-actions">
+                <button type="button" id="decline-btn" class="call-btn end" aria-label="Decline call">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
+                        <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+                    </svg>
+                </button>
+                <button type="button" id="accept-btn" class="call-btn accept" aria-label="Accept call">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call screen (voice and video) -->
+    <div id="call-overlay" class="call-overlay" hidden>
+        <video id="remote-video" class="remote-video" autoplay playsinline></video>
+
+        <div class="call-center">
+            <div class="call-avatar" id="call-avatar"></div>
+            <div class="call-name">Private Chat</div>
+        </div>
+
+        <div class="call-top">
+            <div id="call-status" class="call-status">Calling…</div>
+            <div id="call-timer" class="call-timer"></div>
+        </div>
+
+        <video id="local-video" class="local-video" autoplay playsinline muted></video>
+
+        <div class="call-controls">
+            <button type="button" id="mute-btn" class="call-btn" aria-label="Mute microphone" title="Mute / unmute">
+                <svg class="on-icon" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                </svg>
+                <svg class="off-icon" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                    <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
+                </svg>
+            </button>
+            <button type="button" id="camera-btn" class="call-btn" aria-label="Turn camera off" title="Camera on / off">
+                <svg class="on-icon" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                </svg>
+                <svg class="off-icon" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                    <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"/>
+                </svg>
+            </button>
+            <button type="button" id="hangup-btn" class="call-btn end" aria-label="End call" title="End call">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
+                    <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Default "person" picture, used when a picture is missing -->
+    <template id="person-icon-template">{% include 'chat/_person_icon.html' %}</template>
+
+    <!-- Scripts (order matters). chat.js, call.js and message-avatars.js are your existing files. -->
+    <script>
+/* Keeps the mute / camera buttons in sync. Sets data-off="true" when muted / camera is off;
+   the CSS then draws the diagonal "cut" line over the icon. */
+(function () {
+    'use strict';
+    var mute = document.getElementById('mute-btn');
+    var cam = document.getElementById('camera-btn');
+    var local = document.getElementById('local-video');
+    var overlay = document.getElementById('call-overlay');
+    if (!mute || !cam) return;
+
+    var OFF_CLASSES = ['off', 'muted', 'is-off', 'is-muted', 'mic-off', 'cam-off',
+                       'camera-off', 'video-off', 'audio-off', 'toggled-off'];
+    var manual = { mute: null, cam: null };   // fallback when nothing else reports the state
+
+    function audioTracks() { var s = local && local.srcObject; return (s && s.getAudioTracks) ? s.getAudioTracks() : []; }
+    function videoTracks() { var s = local && local.srcObject; return (s && s.getVideoTracks) ? s.getVideoTracks() : []; }
+    function fromButton(btn) {
+        for (var i = 0; i < OFF_CLASSES.length; i++) {
+            if (btn.classList.contains(OFF_CLASSES[i])) return true;
+        }
+        return /unmute|camera on|start camera|turn on/i.test(btn.getAttribute('aria-label') || '');
+    }
+    function setOff(btn, off) {
+        var v = off ? 'true' : 'false';
+        if (btn.getAttribute('data-off') !== v) btn.setAttribute('data-off', v);
+    }
+    function sync() {
+        var a = audioTracks(), v = videoTracks();
+        var hasStream = !!(local && local.srcObject);
+        setOff(mute, a.length ? !a[0].enabled : (manual.mute !== null ? manual.mute : fromButton(mute)));
+        setOff(cam, hasStream && !v.length ? true
+                  : v.length ? !v[0].enabled
+                  : (manual.cam !== null ? manual.cam : fromButton(cam)));
+    }
+
+    // If a click changes nothing we can read, flip the state ourselves.
+    function watchClick(btn, key, hasTracks) {
+        btn.addEventListener('click', function () {
+            var before = fromButton(btn);
+            var shown = btn.getAttribute('data-off') === 'true';
+            setTimeout(function () {
+                if (!hasTracks() && fromButton(btn) === before) manual[key] = !shown;
+                else manual[key] = null;
+                sync();
+            }, 150);
+        });
+    }
+    watchClick(mute, 'mute', function () { return audioTracks().length > 0; });
+    watchClick(cam, 'cam', function () { return videoTracks().length > 0; });
+
+    var opts = { attributes: true, attributeFilter: ['class', 'aria-label', 'aria-pressed'] };
+    var mo = new MutationObserver(sync);
+    mo.observe(mute, opts);
+    mo.observe(cam, opts);
+
+    setInterval(function () {
+        if (overlay && overlay.hidden) {          // call ended: reset
+            manual.mute = null; manual.cam = null;
+            setOff(mute, false); setOff(cam, false);
+        } else {
+            sync();
+        }
+    }, 400);
+    sync();
+})();
+</script>
+    <script src="{% static 'chat/js/chat.js' %}"></script>
+    <script src="{% static 'chat/js/call.js' %}"></script>
+    <script src="{% static 'chat/js/message-avatars.js' %}"></script>
+    <script>
+/* Profile picture viewer.
+   - Other person's picture / message avatars / call avatars: one click = large view.
+   - Your own picture: one click = small menu ("View profile picture" / "Change profile picture").
+   Self-contained: it injects its own CSS. */
+(function () {
+    'use strict';
+
+    var CLICKABLE = '.avatar, .msg-avatar, .call-avatar';
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var EASE = 'cubic-bezier(.22, 1, .36, 1)';
+
+    /* ---------- CSS ---------- */
+    var css = [
+        '.room-page .avatar, .room-page .msg-avatar, .room-page .call-avatar { cursor: pointer; }',
+        '.room-page .avatar { transition: transform .25s ' + EASE + '; }',
+        '.room-page .avatar:hover, .room-page .msg-avatar:hover { transform: scale(1.1); }',
+        '.room-page .avatar:focus-visible, .room-page .msg-avatar:focus-visible, .room-page .call-avatar:focus-visible { outline: 3px solid #ff6b57; outline-offset: 3px; }',
+        '.room-page .call-center .call-avatar { pointer-events: auto; }',
+
+        /* menu */
+        '.avm-back { position: fixed; inset: 0; z-index: 290; background: transparent; }',
+        '.avm { position: fixed; z-index: 295; left: var(--mx, 12px); top: var(--my, 70px); min-width: 244px; padding: .4rem;',
+        '  background: #fff; border-radius: 16px; transform-origin: top left;',
+        '  box-shadow: 0 18px 50px rgba(20, 33, 61, .3), 0 0 0 1px rgba(20, 33, 61, .06);',
+        '  animation: avm-in .22s ' + EASE + ' both; }',
+        '.avm button { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .8rem .9rem; border: 0; background: none;',
+        '  border-radius: 11px; font: inherit; font-weight: 600; color: #14213d; text-align: left; cursor: pointer; transition: background-color .15s; }',
+        '.avm button:hover, .avm button:focus-visible { background: #e8f5f2; outline: none; }',
+        '.avm svg { width: 22px; height: 22px; flex: none; color: #0f9d8a; }',
+        '@media (max-width: 520px) {',
+        '  .avm-back { background: rgba(8, 14, 30, .5); }',
+        '  .avm { left: 0; right: 0; top: auto; bottom: 0; min-width: 0; border-radius: 22px 22px 0 0;',
+        '    padding: .6rem .6rem calc(.8rem + env(safe-area-inset-bottom, 0px)); transform-origin: bottom; animation: avm-sheet .3s ' + EASE + ' both; }',
+        '  .avm button { padding: 1rem; font-size: 1.02rem; }',
+        '}',
+
+        /* lightbox */
+        '.lightbox:not([hidden]) { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center;',
+        '  padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));',
+        '  background: rgba(8, 14, 30, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);',
+        '  cursor: zoom-out; animation: lb-fade .3s ease both; }',
+        '.lightbox.closing { animation: lb-fade-out .28s ease both; }',
+        '.lb-close { position: absolute; top: calc(.8rem + env(safe-area-inset-top, 0px)); right: .9rem; width: 46px; height: 46px;',
+        '  display: grid; place-items: center; padding: 0 0 3px; font-size: 2rem; line-height: 1; color: #fff;',
+        '  background: rgba(255, 255, 255, .14); border: 0; border-radius: 50%; cursor: pointer; transition: background-color .2s, transform .25s ' + EASE + '; }',
+        '.lb-close:hover { background: #ff6b57; transform: rotate(90deg); }',
+        '.lb-figure { margin: 0; text-align: center; max-width: 100%; }',
+        '.lb-media { display: inline-block; overflow: hidden; line-height: 0; border-radius: 24px; background: #0b1325;',
+        '  box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 4px rgba(255, 255, 255, .15); cursor: default; }',
+        '.lb-media.is-default { border-radius: 50%; }',
+        '.lb-media img { display: block; width: min(86vw, 460px); height: auto; max-height: 72vh; object-fit: contain; }',
+        '.lb-default { width: min(72vw, 320px); aspect-ratio: 1; color: rgba(255, 255, 255, .85); background: #2b3d68; }',
+        '.lb-default svg { display: block; width: 100%; height: 100%; }',
+        '.lb-cap { display: flex; flex-direction: column; align-items: center; gap: .25rem; margin-top: 1.1rem; color: #fff;',
+        '  animation: lb-cap-in .5s ' + EASE + ' .15s both; }',
+        '.lb-cap strong { font-family: "Bricolage Grotesque", "DM Sans", system-ui, sans-serif; font-size: clamp(1.15rem, 4vw, 1.5rem); }',
+        '.lb-cap span { font-size: .82rem; opacity: .65; }',
+        '.lb-change { margin-top: .6rem; padding: .6rem 1.3rem; font: inherit; font-weight: 700; color: #fff; background: #0f9d8a;',
+        '  border: 0; border-radius: 999px; cursor: pointer; transition: transform .2s ' + EASE + ', background-color .2s; }',
+        '.lb-change:hover { background: #0b7a6b; transform: translateY(-2px); }',
+        '@media (max-height: 480px) {',
+        '  .lb-media img { width: auto; max-width: 70vw; max-height: 58vh; }',
+        '  .lb-default { width: 150px; }',
+        '  .lb-cap { margin-top: .4rem; }',
+        '}',
+        '@keyframes avm-in { from { opacity: 0; transform: scale(.85) translateY(-6px); } to { opacity: 1; transform: none; } }',
+        '@keyframes avm-sheet { from { transform: translateY(100%); } to { transform: none; } }',
+        '@keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }',
+        '@keyframes lb-fade-out { from { opacity: 1; } to { opacity: 0; } }',
+        '@keyframes lb-cap-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }'
+    ].join('\n');
+    var styleEl = document.createElement('style');
+    styleEl.textContent = css;
+    document.head.appendChild(styleEl);
+
+    var EYE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5C7 5 2.7 8.1 1 12.5 2.7 16.9 7 20 12 20s9.3-3.1 11-7.5C21.3 8.1 17 5 12 5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>';
+    var CAM = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>';
+
+    var avatarInput = document.getElementById('avatar-input');
+
+    /* ---------- Lightbox ---------- */
+    var lb = null, closeBtn = null, mediaEl = null, capEl = null, changeBtn = null;
+    var sourceEl = null, lastFocus = null, closing = false;
+
+    function ensureLightbox() {
+        if (lb) return;
+        lb = document.createElement('div');
+        lb.className = 'lightbox';
+        lb.hidden = true;
+        lb.setAttribute('role', 'dialog');
+        lb.setAttribute('aria-modal', 'true');
+        lb.setAttribute('aria-label', 'Profile picture');
+        lb.innerHTML =
+            '<button type="button" class="lb-close" aria-label="Close">&times;</button>' +
+            '<figure class="lb-figure"><div class="lb-media"></div>' +
+            '<figcaption class="lb-cap"><strong></strong><span>Tap anywhere to close</span>' +
+            '<button type="button" class="lb-change" hidden>Change profile picture</button></figcaption></figure>';
+        document.body.appendChild(lb);
+        closeBtn = lb.querySelector('.lb-close');
+        mediaEl = lb.querySelector('.lb-media');
+        capEl = lb.querySelector('.lb-cap strong');
+        changeBtn = lb.querySelector('.lb-change');
+        lb.addEventListener('click', function (e) {
+            var wantsChange = e.target.closest && e.target.closest('.lb-change');
+            closeLightbox();
+            if (wantsChange && avatarInput) avatarInput.click();
+        });
+    }
+
+    function buildMedia(el) {
+        var img = el.querySelector('img.ma-base') || el.querySelector('img');
+        if (img) {
+            var big = document.createElement('img');
+            big.src = img.currentSrc || img.src;
+            big.alt = 'Profile picture';
+            big.draggable = false;
+            mediaEl.classList.remove('is-default');
+            return big;
+        }
+        var wrap = document.createElement('div');
+        wrap.className = 'lb-default';
+        var svg = el.querySelector('svg.person-icon');
+        if (svg) {
+            wrap.appendChild(svg.cloneNode(true));
+        } else {
+            var tpl = document.getElementById('person-icon-template');
+            if (tpl && tpl.content) wrap.appendChild(tpl.content.cloneNode(true));
+        }
+        mediaEl.classList.add('is-default');
+        return wrap;
+    }
+
+    function flip(opening) {
+        if (reduceMotion || !sourceEl || !document.body.contains(sourceEl) || !mediaEl.animate) return null;
+        var from = sourceEl.getBoundingClientRect();
+        var to = mediaEl.getBoundingClientRect();
+        if (!from.width || !to.width) return null;
+        if (from.bottom < 0 || from.top > window.innerHeight) return null;
+        var dx = (from.left + from.width / 2) - (to.left + to.width / 2);
+        var dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+        var s = from.width / to.width;
+        var endRadius = getComputedStyle(mediaEl).borderRadius || '24px';
+        var frames = [
+            { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')', borderRadius: '50%' },
+            { transform: 'none', borderRadius: endRadius }
+        ];
+        if (!opening) frames.reverse();
+        return mediaEl.animate(frames, { duration: opening ? 460 : 280, easing: EASE, fill: 'both' });
+    }
+
+    function openLightbox(el, own) {
+        ensureLightbox();
+        if (mediaEl.getAnimations) mediaEl.getAnimations().forEach(function (a) { a.cancel(); });
+        mediaEl.textContent = '';
+        var node = buildMedia(el);
+        mediaEl.appendChild(node);
+        capEl.textContent = own ? 'You' : 'Private Chat';
+        changeBtn.hidden = !own || !avatarInput;
+
+        sourceEl = el;
+        lastFocus = document.activeElement;
+        closing = false;
+        lb.classList.remove('closing');
+        lb.hidden = false;
+        closeBtn.focus({ preventScroll: true });
+
+        var go = function () { flip(true); };
+        if (node.tagName === 'IMG' && !node.complete) {
+            node.addEventListener('load', go, { once: true });
+            node.addEventListener('error', go, { once: true });
+        } else {
+            requestAnimationFrame(go);
+        }
+    }
+
+    function closeLightbox() {
+        if (!lb || lb.hidden || closing) return;
+        closing = true;
+        lb.classList.add('closing');
+        var anim = flip(false);
+        var done = function () {
+            lb.hidden = true;
+            lb.classList.remove('closing');
+            closing = false;
+            if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} }
+        };
+        if (anim) anim.onfinish = done; else setTimeout(done, 250);
+    }
+
+    /* ---------- Menu for YOUR picture ---------- */
+    var menu = null, menuBack = null, menuBtn = null;
+
+    function ensureMenu() {
+        if (menu) return;
+        menuBack = document.createElement('div');
+        menuBack.className = 'avm-back';
+        menuBack.hidden = true;
+        menu = document.createElement('div');
+        menu.className = 'avm';
+        menu.hidden = true;
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML =
+            '<button type="button" role="menuitem" data-act="view">' + EYE + 'View profile picture</button>' +
+            '<button type="button" role="menuitem" data-act="change">' + CAM + 'Change profile picture</button>';
+        document.body.appendChild(menuBack);
+        document.body.appendChild(menu);
+
+        menuBack.addEventListener('click', closeMenu);
+        menu.addEventListener('click', function (e) {
+            var b = e.target.closest('button[data-act]');
+            if (!b) return;
+            var act = b.getAttribute('data-act');
+            var btn = menuBtn;
+            closeMenu();
+            if (act === 'view') {
+                openLightbox(btn.querySelector('.my-avatar-img') || btn, true);
+            } else if (avatarInput) {
+                avatarInput.click();
+            }
+        });
+    }
+
+    function openMenu(btn) {
+        ensureMenu();
+        menuBtn = btn;
+        var r = btn.getBoundingClientRect();
+        var left = Math.max(8, Math.min(r.left, window.innerWidth - 260));
+        menu.style.setProperty('--mx', left + 'px');
+        menu.style.setProperty('--my', (r.bottom + 8) + 'px');
+        menuBack.hidden = false;
+        menu.hidden = false;
+        menu.querySelector('button').focus({ preventScroll: true });
+    }
+
+    function closeMenu() {
+        if (!menu || menu.hidden) return;
+        menu.hidden = true;
+        menuBack.hidden = true;
+        if (menuBtn && menuBtn.focus) { try { menuBtn.focus({ preventScroll: true }); } catch (e) {} }
+    }
+
+    /* ---------- Wiring ---------- */
+    Array.prototype.forEach.call(document.querySelectorAll(CLICKABLE), function (el) {
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
+        el.setAttribute('aria-label', 'View profile picture');
+    });
+
+    // Capture phase: runs before any other click handler, so a single click always works.
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('.lightbox') || t.closest('.avm')) return;
+
+        var mineBtn = t.closest('#my-avatar-btn');
+        if (mineBtn) {                      // your own picture: menu instead of the file picker
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            openMenu(mineBtn);
+            return;
+        }
+        var a = t.closest(CLICKABLE);
+        if (a) {
+            e.preventDefault();
+            openLightbox(a, !!a.closest('.sent'));
+        }
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closeLightbox(); closeMenu(); return; }
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches(CLICKABLE)) {
+            e.preventDefault();
+            openLightbox(e.target, !!e.target.closest('.sent'));
+        }
+    });
+})();
+</script>
+    <script>
+/* Night sky for the room page: twinkling stars + shooting stars. No setup needed,
+   it creates its own <div class="sky"> behind the chat window. */
+(function () {
+    'use strict';
+    var body = document.body;
+    if (!body || body.querySelector('.sky')) return;
+
+    var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var small = window.innerWidth < 600;
+    var STARS = small ? 45 : 90;
+    var RAIN  = calm ? 0 : (small ? 8 : 14);     // fewer than the home page so chat stays smooth
+
+    var cols = ['#ffffff', '#ffd166', '#7ee8fa', '#ff9ecd', '#b69cff', '#7dffb3'];
+    var rain = ['#ffffff', '#7ee8fa', '#ff9ecd', '#ffd166', '#b69cff', '#7dffb3', '#ff6b57'];
+    var html = '', i;
+
+    for (i = 0; i < STARS; i++) {
+        var s = (Math.random() * 2.4 + .8).toFixed(1), c = cols[i % cols.length];
+        html += '<i class="star" style="left:' + (Math.random() * 100).toFixed(1) + '%;top:' + (Math.random() * 100).toFixed(1) +
+            '%;width:' + s + 'px;height:' + s + 'px;background:' + c + ';color:' + c +
+            ';animation-delay:-' + (Math.random() * 6).toFixed(1) + 's;animation-duration:' + (2 + Math.random() * 4).toFixed(1) + 's"></i>';
+    }
+    for (i = 0; i < RAIN; i++) {
+        html += '<span class="shoot" style="--c:' + rain[i % rain.length] +
+            ';left:' + (Math.random() * 120 - 10).toFixed(0) + '%;top:' + (Math.random() * 60 - 20).toFixed(0) +
+            '%;width:' + (70 + Math.random() * 90).toFixed(0) + 'px' +
+            ';animation-duration:' + (1 + Math.random() * 1.2).toFixed(2) + 's' +
+            ';animation-delay:-' + (Math.random() * 4).toFixed(2) + 's"></span>';
+    }
+
+    var sky = document.createElement('div');
+    sky.className = 'sky';
+    sky.setAttribute('aria-hidden', 'true');
+    sky.innerHTML = html;
+    body.insertBefore(sky, body.firstChild);
+})();
+</script>
+</body>
+</html>

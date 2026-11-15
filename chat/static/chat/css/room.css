@@ -1,0 +1,842 @@
+/* ChatRoom – room page enhancements.
+   Load this AFTER style.css. Everything is scoped to body.room-page, and nothing
+   here touches the classes your JS toggles (icon on/off, call states), so chat.js / call.js keep working. */
+
+.room-page {
+    --ink: #14213d;
+    --ink-2: #1b2c52;
+    --ink-soft: #4a5671;
+    --paper: #f2f6f4;
+    --line: #dbe4e0;
+    --teal: #0f9d8a;
+    --teal-dark: #0b7a6b;
+    --coral: #ff6b57;
+    --danger: #e5383b;
+    --ok: #22c55e;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-head: "Bricolage Grotesque", "DM Sans", system-ui, sans-serif;
+
+    margin: 0;
+    height: 100vh;
+    height: 100dvh;
+    font-family: var(--font-body);
+    color: var(--ink);
+    background:
+        radial-gradient(800px 400px at 90% -10%, rgba(15, 157, 138, .18), transparent 60%),
+        radial-gradient(700px 400px at 0% 100%, rgba(255, 107, 87, .12), transparent 60%),
+        var(--paper);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+}
+.room-page *, .room-page *::before, .room-page *::after { box-sizing: border-box; }
+.room-page [hidden] { display: none !important; }
+
+/* ---------- Layout shell ---------- */
+.room-page .room-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 880px;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0 auto;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+    animation: shell-in .6s var(--ease) both;
+}
+@media (min-width: 900px) {
+    .room-page .room-wrapper {
+        height: calc(100dvh - 2.5rem);
+        margin: 1.25rem auto;
+        border-radius: 26px;
+        box-shadow: 0 30px 70px rgba(20, 33, 61, .22);
+    }
+}
+
+/* ---------- Header ---------- */
+.room-page .room-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: calc(.75rem + env(safe-area-inset-top, 0px)) 1rem .75rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--ink-2), var(--ink));
+    box-shadow: 0 4px 18px rgba(20, 33, 61, .25);
+    position: relative;
+    z-index: 5;
+}
+
+.room-page .back-link {
+    width: 40px; height: 40px;
+    flex: none;
+    display: grid; place-items: center;
+    font-size: 1.35rem;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 50%;
+    transition: background-color .2s, transform .25s var(--ease);
+}
+.room-page .back-link:hover { background: rgba(255, 255, 255, .14); transform: translateX(-3px); }
+
+.room-page .avatar {
+    width: 46px; height: 46px;
+    flex: none;
+    border-radius: 50%;
+    overflow: hidden;
+    color: rgba(255, 255, 255, .75);
+    background: #2b3d68;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .35);
+}
+
+.room-page .room-title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.2;
+}
+.room-page .room-title strong {
+    font-family: var(--font-head);
+    font-size: 1.1rem;
+    letter-spacing: -.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.room-page .status {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .78rem;
+    color: rgba(255, 255, 255, .75);
+}
+.room-page .status::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--coral);
+    transition: background-color .3s;
+}
+.room-page .status.disconnected { color: #ffd0c9; }
+.room-page .status.connected { color: #b9f3d9; }
+.room-page .status.connected::before { background: #34d399; animation: status-pulse 2s ease-out infinite; }
+
+.room-page .header-actions { display: flex; gap: .4rem; flex: none; }
+
+.room-page .icon-btn {
+    width: 42px; height: 42px;
+    display: grid; place-items: center;
+    padding: 0;
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color .2s, transform .2s var(--ease), opacity .2s;
+}
+.room-page .icon-btn:not(:disabled):hover { background: var(--teal); transform: translateY(-2px); }
+.room-page .icon-btn:not(:disabled):active { transform: scale(.92); }
+.room-page .icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ---------- Info bar ---------- */
+.room-page .room-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .7rem;
+    padding: .6rem 1rem;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    font-size: .85rem;
+}
+
+.room-page .my-avatar {
+    position: relative;
+    width: 40px; height: 40px;
+    padding: 0;
+    flex: none;
+    background: none;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform .25s var(--ease);
+}
+.room-page .my-avatar:hover { transform: scale(1.08); }
+.room-page .my-avatar:active { transform: scale(.95); }
+.room-page .my-avatar-img {
+    display: block;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    color: #8a95ab;
+    background: var(--line);
+}
+.room-page .cam-badge {
+    position: absolute;
+    right: -3px; bottom: -3px;
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    color: #fff;
+    background: var(--coral);
+    border: 2px solid #fff;
+    border-radius: 50%;
+}
+
+.room-page .me-label { font-weight: 700; }
+
+.room-page .room-id-group {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+    color: var(--ink-soft);
+}
+.room-page .room-id-small {
+    padding: .25rem .6rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .8rem;
+    color: var(--ink);
+    background: var(--paper);
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+.room-page .copy-btn {
+    padding: .4rem .9rem;
+    font: inherit; font-size: .82rem; font-weight: 700;
+    color: var(--teal-dark);
+    background: rgba(15, 157, 138, .1);
+    border: 1px solid rgba(15, 157, 138, .35);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color .2s, color .2s, transform .15s;
+}
+.room-page .copy-btn:hover { background: var(--teal); color: #fff; }
+.room-page .copy-btn:active { transform: scale(.94); }
+
+/* ---------- Messages ---------- */
+.room-page .messages {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    padding: 1rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    background-color: var(--paper);
+    background-image: radial-gradient(rgba(20, 33, 61, .08) 1px, transparent 1px);
+    background-size: 18px 18px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 33, 61, .25) transparent;
+}
+.room-page .messages::-webkit-scrollbar { width: 6px; }
+.room-page .messages::-webkit-scrollbar-thumb { background: rgba(20, 33, 61, .25); border-radius: 6px; }
+
+.room-page .message { display: flex; width: 100%; }
+.room-page .message.sent { justify-content: flex-end; animation: msg-right .4s var(--ease) both; }
+.room-page .message.received { justify-content: flex-start; animation: msg-left .4s var(--ease) both; }
+
+.room-page .message .bubble {
+    max-width: min(78%, 520px);
+    padding: .55rem .85rem .35rem;
+    border-radius: 18px;
+    box-shadow: 0 3px 10px rgba(20, 33, 61, .08);
+}
+.room-page .message.sent .bubble {
+    color: #fff;
+    background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+    border-bottom-right-radius: 5px;
+}
+.room-page .message.received .bubble {
+    color: var(--ink);
+    background: #fff;
+    border-bottom-left-radius: 5px;
+}
+.room-page .message .text {
+    line-height: 1.42;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.room-page .message .time {
+    margin-top: .2rem;
+    font-size: .68rem;
+    text-align: right;
+    opacity: .7;
+}
+
+.room-page .notice {
+    align-self: center;
+    max-width: 92%;
+    margin: auto;
+    padding: .7rem 1.1rem;
+    font-size: .9rem;
+    line-height: 1.5;
+    text-align: center;
+    color: var(--ink-soft);
+    background: rgba(255, 255, 255, .92);
+    border: 1px dashed var(--line);
+    border-radius: 16px;
+    animation: notice-in .6s var(--ease) .2s both;
+}
+
+/* ---------- Message form ---------- */
+.room-page .message-form {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid var(--line);
+}
+.room-page .message-form input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    padding: .85rem 1.2rem;
+    font: inherit;
+    font-size: 1rem; /* 16px stops iOS zoom on focus */
+    color: var(--ink);
+    background: var(--paper);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    transition: border-color .2s, background-color .2s, box-shadow .2s;
+}
+.room-page .message-form input[type="text"]::placeholder { color: #8a95ab; }
+.room-page .message-form input[type="text"]:focus {
+    outline: none;
+    background: #fff;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 4px rgba(15, 157, 138, .16);
+}
+
+.room-page .send-btn {
+    width: 48px; height: 48px;
+    flex: none;
+    display: grid; place-items: center;
+    padding: 0;
+    color: #fff;
+    background: var(--coral);
+    border: 0;
+    border-radius: 50%;
+    box-shadow: 0 8px 18px rgba(255, 107, 87, .4);
+    cursor: pointer;
+    transition: transform .2s var(--ease), background-color .2s;
+}
+.room-page .send-btn svg { transition: transform .3s var(--ease); }
+.room-page .send-btn:hover { background: #ff7d6b; transform: translateY(-2px); }
+.room-page .send-btn:hover svg { transform: translateX(2px) rotate(-10deg); }
+.room-page .send-btn:active { transform: scale(.9); }
+
+/* ---------- Toast ---------- */
+.room-page .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    translate: -50% 0;
+    z-index: 200;
+    max-width: min(90vw, 420px);
+    padding: .7rem 1.2rem;
+    font-size: .9rem;
+    color: #fff;
+    text-align: center;
+    background: var(--ink);
+    border-radius: 999px;
+    box-shadow: 0 12px 30px rgba(20, 33, 61, .35);
+    animation: toast-in .4s var(--ease) both;
+}
+
+/* ---------- Incoming call ---------- */
+.room-page .incoming:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(11, 19, 37, .88);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    animation: fade-in .3s ease both;
+}
+.room-page .incoming-card {
+    text-align: center;
+    color: #fff;
+    animation: pop-in .6s var(--ease) both;
+}
+.room-page .incoming-title {
+    margin-top: 1.4rem;
+    font-family: var(--font-head);
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+}
+.room-page .incoming-sub { margin-top: .25rem; opacity: .7; }
+.room-page .incoming-actions {
+    display: flex;
+    justify-content: center;
+    gap: 3.5rem;
+    margin-top: 2.5rem;
+}
+
+/* Shared avatar for incoming + in-call */
+.room-page .call-avatar {
+    width: 112px; height: 112px;
+    margin: 0 auto;
+    border-radius: 50%;
+    overflow: hidden;
+    color: rgba(255, 255, 255, .75);
+    background: #2b3d68;
+    animation: ring 2s ease-out infinite;
+}
+
+/* Avatar / person icon sizing everywhere */
+.room-page .avatar img, .room-page .avatar svg,
+.room-page .my-avatar-img img, .room-page .my-avatar-img svg,
+.room-page .call-avatar img, .room-page .call-avatar svg {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+
+/* ---------- Call buttons (colours of on/off state are left to style.css) ---------- */
+.room-page .call-btn {
+    width: 64px; height: 64px;
+    display: inline-grid; place-items: center;
+    padding: 0;
+    color: #fff;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform .2s var(--ease), filter .2s;
+}
+.room-page .call-btn:hover { transform: translateY(-3px); filter: brightness(1.1); }
+.room-page .call-btn:active { transform: scale(.9); }
+.room-page .call-btn.end { background: var(--danger); box-shadow: 0 10px 24px rgba(229, 56, 59, .45); }
+.room-page .call-btn.accept {
+    background: var(--ok);
+    box-shadow: 0 10px 24px rgba(34, 197, 94, .45);
+    animation: accept-bounce 1.4s ease-in-out infinite;
+}
+
+/* ---------- Call screen ---------- */
+.room-page .call-overlay:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 160;
+    overflow: hidden;
+    color: #fff;
+    background: radial-gradient(900px 600px at 50% 30%, #1d2f58, #0b1325);
+    animation: fade-in .35s ease both;
+}
+.room-page .remote-video {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+.room-page .call-center {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: max-content;
+    height: max-content;
+    max-width: 90%;
+    text-align: center;
+    z-index: 1;
+    pointer-events: none;
+}
+.room-page .call-name {
+    margin-top: 1.1rem;
+    font-family: var(--font-head);
+    font-size: clamp(1.4rem, 5vw, 1.8rem);
+    font-weight: 800;
+}
+.room-page .call-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem 2.5rem;
+    text-align: center;
+    z-index: 3;
+    background: linear-gradient(rgba(0, 0, 0, .5), transparent);
+    pointer-events: none;
+}
+.room-page .call-status { font-size: .95rem; opacity: .85; }
+.room-page .call-timer {
+    margin-top: .15rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.room-page .local-video {
+    position: absolute;
+    top: calc(4.6rem + env(safe-area-inset-top, 0px));
+    right: 1rem;
+    width: clamp(92px, 26vw, 150px);
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    z-index: 4;
+    background: var(--ink-2);
+    border: 2px solid rgba(255, 255, 255, .55);
+    border-radius: 16px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .4);
+    transform: scaleX(-1);
+    animation: pop-in .5s var(--ease) both;
+}
+
+.room-page .call-controls {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    gap: 1.1rem;
+    padding: 2.5rem 1rem calc(1.4rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(transparent, rgba(0, 0, 0, .55));
+    animation: controls-in .6s var(--ease) .15s both;
+}
+.room-page .call-controls .call-btn { width: 60px; height: 60px; }
+
+/* ---------- Focus ---------- */
+.room-page button:focus-visible,
+.room-page a:focus-visible,
+.room-page input:focus-visible {
+    outline: 3px solid var(--coral);
+    outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 520px) {
+    .room-page .room-header { gap: .5rem; padding-left: .6rem; padding-right: .75rem; }
+    .room-page .avatar { width: 42px; height: 42px; }
+    .room-page .icon-btn { width: 40px; height: 40px; }
+    .room-page .room-info { padding: .5rem .75rem; font-size: .8rem; }
+    .room-page .room-id-label { display: none; }
+    .room-page .messages { padding: .75rem; }
+    .room-page .message .bubble { max-width: 86%; }
+    .room-page .message-form { padding-left: .75rem; padding-right: .75rem; }
+    .room-page .incoming-actions { gap: 2.5rem; }
+}
+
+@media (max-width: 360px) {
+    .room-page .me-label { display: none; }
+    .room-page .room-id-group { margin-left: 0; }
+}
+
+/* Phones held sideways */
+@media (max-height: 480px) {
+    .room-page .room-header { padding-top: calc(.4rem + env(safe-area-inset-top, 0px)); padding-bottom: .4rem; }
+    .room-page .room-info { padding-top: .3rem; padding-bottom: .3rem; }
+    .room-page .call-avatar { width: 72px; height: 72px; }
+    .room-page .incoming-actions { margin-top: 1.2rem; }
+    .room-page .incoming-title { margin-top: .8rem; }
+    .room-page .call-controls { padding-top: 1rem; }
+    .room-page .call-controls .call-btn, .room-page .call-btn { width: 52px; height: 52px; }
+    .room-page .local-video { top: calc(3.2rem + env(safe-area-inset-top, 0px)); width: 88px; }
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes shell-in      { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes msg-right     { from { opacity: 0; transform: translateX(22px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes msg-left      { from { opacity: 0; transform: translateX(-22px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes notice-in     { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in      { from { opacity: 0; transform: translateY(16px) scale(.95); } to { opacity: 1; transform: none; } }
+@keyframes fade-in       { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in        { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: none; } }
+@keyframes controls-in   { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: none; } }
+@keyframes status-pulse  { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .6); } 100% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); } }
+@keyframes ring          { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .35); } 100% { box-shadow: 0 0 0 34px rgba(255, 255, 255, 0); } }
+@keyframes accept-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .room-page *, .room-page *::before, .room-page *::after {
+        animation-duration: .01ms !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+
+/* =====================================================================
+   v2 – colourful messages + colourful mute / camera buttons
+   (appended last on purpose so it wins over the rules above)
+   ===================================================================== */
+
+/* ---------- Colourful message animation ---------- */
+.room-page .message.sent .bubble {
+    background: linear-gradient(135deg, #14b8a6 0%, #0f9d8a 40%, #3b82f6 100%);
+    background-size: 220% 220%;
+    transform-origin: right bottom;
+    animation:
+        bubble-pop .6s var(--ease) both,
+        bubble-shimmer 2.4s ease-in-out .2s both,
+        glow-teal 1.2s ease-out both;
+}
+.room-page .message.received .bubble {
+    background: linear-gradient(135deg, #ffffff 0%, #fff3f0 100%);
+    border: 1px solid #ffd9d2;
+    border-left: 4px solid var(--coral);
+    transform-origin: left bottom;
+    animation:
+        bubble-pop .6s var(--ease) both,
+        glow-coral 1.2s ease-out both;
+}
+.room-page .message.received .time { color: #c2574a; opacity: .85; }
+
+/* Only the latest messages animate (history on page load stays calm) */
+.room-page .message:not(:nth-last-child(-n+6)),
+.room-page .message:not(:nth-last-child(-n+6)) .bubble { animation: none; }
+
+.room-page .send-btn {
+    background: linear-gradient(135deg, #ff6b57, #ff9a3c);
+    box-shadow: 0 8px 18px rgba(255, 107, 87, .4);
+}
+.room-page .send-btn:hover { background: linear-gradient(135deg, #ff7d6b, #ffaa55); }
+
+/* ---------- Colourful mute + camera buttons ---------- */
+.room-page #mute-btn,
+.room-page #camera-btn {
+    position: relative;
+    width: 60px; height: 60px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, .28);
+    border-radius: 50%;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
+    cursor: pointer;
+    transition: background .3s, transform .2s var(--ease), box-shadow .3s;
+}
+.room-page #mute-btn   { background: linear-gradient(135deg, #14b8a6, #0f9d8a); }
+.room-page #camera-btn { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+
+/* OFF state (muted / camera off) */
+.room-page #mute-btn[data-off="true"],
+.room-page #camera-btn[data-off="true"] {
+    background: linear-gradient(135deg, #ff6b57, #e5383b);
+    box-shadow: 0 10px 24px rgba(229, 56, 59, .5);
+}
+
+.room-page #mute-btn:hover,
+.room-page #camera-btn:hover { transform: translateY(-3px); }
+.room-page #mute-btn:active,
+.room-page #camera-btn:active { transform: scale(.9); }
+
+/* Icons: always visible, exactly one of on / off at a time */
+.room-page #mute-btn svg,
+.room-page #camera-btn svg {
+    width: 26px; height: 26px;
+    flex: none;
+    fill: currentColor;
+    color: #fff;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: none;
+    animation: icon-pop .35s var(--ease);
+}
+.room-page #mute-btn .on-icon,
+.room-page #camera-btn .on-icon  { display: block !important; }
+.room-page #mute-btn .off-icon,
+.room-page #camera-btn .off-icon { display: none !important; }
+
+.room-page #mute-btn[data-off="true"] .on-icon,
+.room-page #camera-btn[data-off="true"] .on-icon  { display: none !important; }
+.room-page #mute-btn[data-off="true"] .off-icon,
+.room-page #camera-btn[data-off="true"] .off-icon { display: block !important; }
+
+/* ---------- Extra keyframes ---------- */
+@keyframes bubble-pop     { 0% { transform: scale(.6); } 60% { transform: scale(1.07); } 100% { transform: scale(1); } }
+@keyframes bubble-shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 50% 50%; } }
+@keyframes glow-teal      { 0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, .75); } 100% { box-shadow: 0 0 0 16px rgba(20, 184, 166, 0); } }
+@keyframes glow-coral     { 0% { box-shadow: 0 0 0 0 rgba(255, 107, 87, .7); } 100% { box-shadow: 0 0 0 16px rgba(255, 107, 87, 0); } }
+@keyframes icon-pop       { 0% { transform: scale(.4) rotate(-25deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+
+/* =====================================================================
+   v3 – WhatsApp-style "cut" line on mute / camera icons when OFF
+   (same icon stays, a diagonal slash is drawn over it)
+   ===================================================================== */
+.room-page #mute-btn[data-off="true"] .on-icon,
+.room-page #camera-btn[data-off="true"] .on-icon  { display: block !important; }
+.room-page #mute-btn[data-off="true"] .off-icon,
+.room-page #camera-btn[data-off="true"] .off-icon { display: none !important; }
+
+/* ::before = thin gap around the line (matches the red button), ::after = white line */
+.room-page #mute-btn::before,
+.room-page #mute-btn::after,
+.room-page #camera-btn::before,
+.room-page #camera-btn::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 38px;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-45deg) scaleX(0);
+    transition: transform .35s var(--ease), opacity .2s;
+}
+.room-page #mute-btn::before,
+.room-page #camera-btn::before { height: 9px; background: #f05047; }
+.room-page #mute-btn::after,
+.room-page #camera-btn::after  { height: 3px; background: #fff; }
+
+.room-page #mute-btn[data-off="true"]::before,
+.room-page #mute-btn[data-off="true"]::after,
+.room-page #camera-btn[data-off="true"]::before,
+.room-page #camera-btn[data-off="true"]::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-45deg) scaleX(1);
+}
+
+@media (max-width: 520px), (max-height: 480px) {
+    .room-page #mute-btn::before, .room-page #mute-btn::after,
+    .room-page #camera-btn::before, .room-page #camera-btn::after { width: 32px; }
+}
+
+
+/* =====================================================================
+   v4 – default person icon (chat/_person_icon.html)
+   Responsive: it fills whatever circle it is placed in (header, info bar, call screens).
+   ===================================================================== */
+.room-page .person-icon {
+    display: block;
+    width: 100%; height: 100%;
+    overflow: hidden;
+}
+.room-page .person-icon .pi-bg {
+    fill: var(--teal);
+    opacity: .38;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pi-breathe 4s ease-in-out infinite;
+}
+.room-page .person-icon .pi-body {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    animation: pi-body-in .6s var(--ease) .1s both;
+}
+.room-page .person-icon .pi-head {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pi-head-in .6s var(--ease) both;
+}
+
+/* In call screens the head gently bobs, so the avatar feels alive while ringing */
+.room-page .call-avatar .person-icon .pi-head {
+    animation: pi-head-in .6s var(--ease) both, pi-bob 3s ease-in-out .8s infinite;
+}
+.room-page .call-avatar .person-icon .pi-bg { opacity: .5; }
+
+@keyframes pi-head-in  { from { opacity: 0; transform: translateY(-5px) scale(.5); } to { opacity: 1; transform: none; } }
+@keyframes pi-body-in  { from { opacity: 0; transform: translateY(6px) scaleY(.6); } to { opacity: 1; transform: none; } }
+@keyframes pi-breathe  { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes pi-bob      { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.6px); } }
+
+
+/* =====================================================================
+   v5 – avatar next to every message + talking (lip-sync) animation
+   ===================================================================== */
+.room-page .message { align-items: flex-end; gap: .5rem; }
+.room-page .message .bubble { max-width: min(calc(78% - 44px), 520px); }
+
+.room-page .msg-avatar {
+    --ring: rgba(255, 107, 87, .65);
+    --solid: var(--coral);
+    position: relative;
+    flex: none;
+    width: 34px; height: 34px;
+    margin-bottom: 2px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #fff, 0 4px 10px rgba(20, 33, 61, .18);
+    animation: ava-pop .5s var(--ease) both;
+}
+.room-page .msg-avatar.sent { --ring: rgba(20, 184, 166, .7); --solid: #14b8a6; }
+
+.room-page .msg-avatar::after {          /* ripple ring while talking */
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+}
+.room-page .msg-avatar.talking { transform: scale(1.08); transition: transform .25s var(--ease); }
+.room-page .msg-avatar.talking::after { animation: talk-ring .9s ease-out infinite; }
+
+.room-page .ma-face {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    color: rgba(255, 255, 255, .8);
+    background: #2b3d68;
+}
+.room-page .ma-face img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    user-select: none;
+}
+/* Jaw: a copy of the photo, only the lower part, moves up/down while talking */
+.room-page .ma-jaw { clip-path: inset(62% 0 0 0); }
+.room-page .msg-avatar.talking .ma-jaw { animation: jaw .26s ease-in-out infinite alternate; }
+
+/* Tiny sound bars under the avatar */
+.room-page .ma-eq {
+    position: absolute;
+    left: 50%; bottom: -6px;
+    display: flex; align-items: flex-end; gap: 2px;
+    height: 9px;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity .2s;
+}
+.room-page .ma-eq i {
+    width: 3px; height: 100%;
+    border-radius: 2px;
+    background: var(--solid);
+    transform: scaleY(.3);
+    transform-origin: bottom;
+}
+.room-page .msg-avatar.talking .ma-eq { opacity: 1; }
+.room-page .msg-avatar.talking .ma-eq i { animation: eq .5s ease-in-out infinite alternate; }
+.room-page .msg-avatar.talking .ma-eq i:nth-child(2) { animation-delay: .15s; }
+.room-page .msg-avatar.talking .ma-eq i:nth-child(3) { animation-delay: .3s; }
+
+/* Default icon: face features + mouth that opens and closes */
+.room-page .person-icon .pi-eye,
+.room-page .person-icon .pi-mouth {
+    fill: #14213d;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+.room-page .person-icon .pi-eye { animation: blink 5s ease-in-out infinite; }
+.room-page .talking .pi-mouth { animation: mouth .22s ease-in-out infinite alternate; }
+
+/* Header / info-bar picture also reacts */
+.room-page .avatar.talking,
+.room-page .my-avatar-img.talking { animation: talk-ring-white 1s ease-out infinite; }
+
+/* Only the latest messages pop in */
+.room-page .message:not(:nth-last-child(-n+6)) .msg-avatar { animation: none; }
+
+@media (max-width: 520px) {
+    .room-page .msg-avatar { width: 28px; height: 28px; }
+    .room-page .message { gap: .4rem; }
+    .room-page .message .bubble { max-width: calc(86% - 38px); }
+}
+
+@keyframes ava-pop        { 0% { opacity: 0; transform: scale(.3); } 70% { transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes talk-ring      { 0% { box-shadow: 0 0 0 0 var(--ring); } 100% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); } }
+@keyframes talk-ring-white{ 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .6); } 100% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); } }
+@keyframes jaw            { from { transform: translateY(0); } to { transform: translateY(10%); } }
+@keyframes eq             { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+@keyframes mouth          { from { transform: scale(.8, .7); } to { transform: scale(1.1, 3.4); } }
+@keyframes blink          { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
