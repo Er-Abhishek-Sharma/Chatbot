@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ChatRoom — One-to-One Real-Time Chat (WhatsApp-style)
 
 A simple private chat website for exactly **two people**.
@@ -341,3 +342,6 @@ If you change `chat/models.py` later, also run:
 python manage.py makemigrations chat
 python manage.py migrate
 ```
+=======
+# Chatbot
+>>>>>>> 2114e155df795118f59fb821a2406ba4346d4379
