@@ -29,7 +29,7 @@ DEBUG = True
 # To test from your phone on the same Wi-Fi, add your computer's IP address here,
 # for example: ALLOWED_HOSTS = ["127.0.0.1", "localhost", "192.168.1.5"]
 # (This list is also used to check WebSocket connections, so the IP is needed here.)
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -54,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -123,7 +124,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
-
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Channels: the "post office" that passes messages between users in a room.
 # InMemoryChannelLayer needs no extra software (good for learning and local use).
