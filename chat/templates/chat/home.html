@@ -34,7 +34,7 @@
             <div class="hero-frame">
                 <span class="ring r1"></span><span class="ring r2"></span>
                 <img class="hero-img" src="{% static 'chat/img/avatar.jpg' %}" alt="" loading="eager" decoding="async" fetchpriority="high"
-                     onerror="this.closest('.hero-frame').classList.add('no-img')">
+                    onerror="this.closest('.hero-frame').classList.add('no-img')">
                 <span class="hero-fallback">💬</span>
             </div>
         </section>
@@ -160,14 +160,13 @@
                 '</svg>';
         }
 
-        
         var IMGS = {
-            a1: "{% static 'chat/img/avatar1.JPG' %}",
-            a2: "{% static 'chat/img/avatar2.JPG' %}",
-            a3: "{% static 'chat/img/avatar3.JPG' %}",
-            a4: "{% static 'chat/img/avatar4.JPG' %}"
+            a1: "{% static 'chat/img/avatar1.jpg' %}",
+            a2: "{% static 'chat/img/avatar2.jpg' %}",
+            a3: "{% static 'chat/img/avatar3.jpg' %}",
+            a4: "{% static 'chat/img/avatar4.jpg' %}"
         };
-
+       
         // Image na mile to ye cartoon avatar apne aap dikhega (backup)
         var DEFAULT_A = { sk: '#f2c6a0', hc: '#2b1d16', sh: '#ff6b57', h: 0 };
 
